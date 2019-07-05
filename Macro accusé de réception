@@ -1,0 +1,148 @@
+Dim WithEvents m_colInbox As Outlook.Items
+
+' Déclarations des variables
+ 
+Dim msgtemp As String
+Dim exediteur As String
+Dim objet_email As String
+Dim item_outlook As MailItem
+Dim itm As Outlook.MailItem
+Dim ObjetduMail As String
+
+
+Private Sub Application_Startup()
+ 
+Dim ns_outlook As Outlook.NameSpace
+Dim objNomBoite As Recipient
+Dim objDossier As Outlook.MAPIFolder
+Dim ola As Outlook.AddressList
+
+Set ns_outlook = objSession.GetNamespace("MAPI")
+    Set objNomBoite = objNS.CreateRecipient("Le nom de la boîte")
+        Set objDossier = Application.Session.GetSharedDefaultFolder(objNomBoite, olFolderInbox)
+ 
+    Set m_colInbox = objDossier.Items
+ 
+Set ns_outlook = Nothing
+Set objNomBoite = Nothing
+Set objDossier = Nothing
+End Sub
+ 
+Private Sub m_colInbox_ItemAdd(ByVal Item As Object)
+ 
+Dim objMsg As Outlook.MailItem
+On Error Resume Next
+    If Item.Class = olMail Then
+        Set objMsg = Item
+        
+'En cas d'erreur
+On Error Resume Next
+        
+'séparer le matricule de l'objet Outlook
+arrID = Split(EntryIDCollection, ",")
+
+'Boucle sur l'objet en cours
+For i = 0 To UBound(arrID)
+
+'Identifier l'objet en cours
+Set item_outlook = ns_outlook.GetItemFromID(arrID(i))
+        
+        
+'Identifier l'email
+Set itm = item_outlook
+        
+        
+'identifier l'expéditeur
+expediteur = itm.SenderName
+objet_email = itm.Subject
+        
+'Vérifier que l'expediteur est dans la liste
+Set ola = outApp.Session.AddressLists("Contacts")
+If expediteur = ola.AddressEntries Then
+
+'Vérifier si c'est une chaine de courriels ou non...
+    If (Not objet_email.Value Like "Re:*")   Then
+
+'Lancer la macro de controle et d'accusé réception    
+        Call ForwardFor
+        
+    End If
+    End If
+    End If
+    
+Next
+
+'Remettre a zéro
+Set ns_outlook = Nothing
+Set item_outlook = Nothing
+Set itm = Nothing
+Set Body = Nothing
+Set objMsg = Nothing
+End Sub
+
+Sub ForwardFor()
+
+'au cas d'erreur
+On Error GoTo EnvoyerEmailErreur
+
+'définition des variables
+Dim currItem  As Outlook.MailItem
+Dim newFwd As Outlook.MailItem
+Dim myItem As Outlook.MailItem
+Dim myattachments As Outlook.Attachments
+ 
+Set currItem = ActiveInspector.CurrentItem
+Set newFwd = currItem.Forward
+Set myattachments = currItem.Attachments
+Set myItem = Application.CreateItemFromTemplate("C:\Users\nijaw\AppData\Roaming\Microsoft\Templates\msg.oft")
+   
+    'création de l'email
+    
+    newFwd.Recipients.Add (exediteur)
+    newFwd.HTMLBody = myItem.HTMLBody & newFwd.HTMLBody
+    myItem.Close olDiscard
+    
+      '  If PieceJointe <> "" Then .Attachments.Add PieceJointe
+
+     '  .Display   '<- affiche l'email (si vous ne voulez pas l'afficher, mettez cette ligne en commentaire)
+     '  .Save      '<- sauvegarde l'email avant l'envoi (pour ne pas le sauvegarder, mettez cette ligne en commentaire)
+     '  .Send      '<- envoie l'email (si vous voulez seulement préparer l'email et l'envoyer manuellement, mettez cette ligne en commentaire)
+
+    
+   'nettoyage...
+   
+Set newFwd = Nothing
+Set myItem = Nothing
+Set currItem = Nothing
+Set myattachments = Nothing
+    
+   Exit Sub
+
+EnvoyerEmailErreur:
+    If (Not (oMailItem Is Nothing)) Then Set oMailItem = Nothing
+    If (Not (oOutlook Is Nothing)) Then Set oOutlook = Nothing
+    
+    On Error Resume Next
+        
+End Sub
+
+Private Sub PreparerOutlook(ByRef oOutlook As Object)
+
+'------------------------------------------------------------------------------------------------
+'Ce code vérifie si Outlook est prêt à envoyer des emails... Et s'il ne l'est pas, il le prépare.
+'------------------------------------------------------------------------------------------------
+On Error Resume Next
+    'vérification si Outlook est ouvert
+    Set oOutlook = GetObject(, "Outlook.Application")
+    
+    If (Err.Number <> 0) Then 'si Outlook n'est pas ouvert, une instance est ouverte
+        Err.Clear
+        Set oOutlook = CreateObject("Outlook.Application")
+    Else    'si Outlook est ouvert, l'instance existante est utilisée
+        Set oOutlook = GetObject("Outlook.Application")
+        oOutlook.Visible = True
+    End If
+    Exit Sub
+End Sub
+
+'créé par Nijaoui_Wassim 
